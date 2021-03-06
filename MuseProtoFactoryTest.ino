@@ -297,7 +297,7 @@ for(j=0;j<1024;j++)
 // test 88 samples = 2ms -> 500hz
  // if (((imax2-imax1) == 88) && ((imin2-imin1) == 88) && (abs(imax1-imin1) >= 40) && (abs(imax1-imin1)<=50)) testOK = true;
 
-#define DT 2
+#define DT 4
 #define LO (88 - DT)
 #define HI (88 + DT)
 #define LOH 40
