@@ -54,10 +54,9 @@ extern "C"
 #define I2S_DIN       35
 #define I2SR (i2s_port_t)0
 
-//#define PL GPIO_NUM_4        // play
-//#define PA GPIO_NUM_32       // pause
-#define VM GPIO_NUM_0        // Vol-
-//#define VP GPIO_NUM_19       // Vol+
+
+
+
 
 
 RgbColor RED(255, 0, 0);
@@ -65,7 +64,7 @@ RgbColor GREEN(0, 255, 0);
 RgbColor BLUE(0, 0, 255);
 RgbColor WHITE(255, 255, 255);
 RgbColor BLACK(0, 0, 0);
-
+RgbColor YELLOW(255, 255, 0);
 RgbColor REDL(64, 0, 0);
 RgbColor GREENL(0, 64, 0);
 RgbColor BLUEL(0, 0, 64);
@@ -73,19 +72,12 @@ RgbColor WHITEL(64, 64, 64);
 RgbColor BLACKL(0, 0, 0);
 
 #define ONled 0
-/*#define BATled 1
-#define PLled 2
-#define PAled 3
-#define VPled 4
-#define VMled 5
-*/
 
-//#define AUXD GPIO_NUM_27    // AUX In detect
+#define BT GPIO_NUM_0         // button
 #define SDD GPIO_NUM_34       // Sd detect
 #define PW GPIO_NUM_21        // Amp power ON
 //#define GS GPIO_NUM_23        // Amp Gain
 
-int VMval, VPval ,PAval, PLval;
 
 bool testOK;
 #define TAG "bt_sp"
@@ -303,7 +295,22 @@ for(j=0;j<1024;j++)
   printf("==================> %d %d  %d %d %d\n",min1,min2, imin1,imin2, imin2-imin1);
   
 // test 88 samples = 2ms -> 500hz
-  if (((imax2-imax1) == 88) && ((imin2-imin1) == 88) && (abs(imax1-imin1) >= 40) && (abs(imax1-imin1)<=50)) testOK = true;
+ // if (((imax2-imax1) == 88) && ((imin2-imin1) == 88) && (abs(imax1-imin1) >= 40) && (abs(imax1-imin1)<=50)) testOK = true;
+
+#define DT 2
+#define LO (88 - DT)
+#define HI (88 + DT)
+#define LOH 40
+#define HIH 50
+  testOK = true;
+  if((imax2-imax1) < LO) testOK = false;
+  if((imax2-imax1) > HI) testOK = false;
+  if((imin2-imin1) < LO) testOK = false;
+  if((imin2-imin1) > HI) testOK = false;
+  if(abs(imax1-imin1) < LOH) testOK = false;
+  if(abs(imax1-imin1) > HIH) testOK = false;
+  
+ 
 
   printf("fin\n");
   vTaskDelete(NULL);
@@ -324,27 +331,11 @@ void setup()
 ///////////////////////////////////////////   
 // init GPIO pins  
 /////////////////////////////////////////////  
-// VM
-    gpio_reset_pin(VM);
-    gpio_set_direction(VM, GPIO_MODE_INPUT);
-    gpio_set_pull_mode(VM, GPIO_PULLUP_ONLY);   
-/*
-// VP
-    gpio_reset_pin(VP);
-    gpio_set_direction(VP, GPIO_MODE_INPUT);
-    gpio_set_pull_mode(VP, GPIO_PULLUP_ONLY);
-
-// PA
-    gpio_reset_pin(PA);
-    gpio_set_direction(PA, GPIO_MODE_INPUT);
-    gpio_set_pull_mode(PA, GPIO_PULLUP_ONLY);   
-     
-// PL
-    gpio_reset_pin(PL);
-    gpio_set_direction(PL, GPIO_MODE_INPUT);
-    gpio_set_pull_mode(PL, GPIO_PULLUP_ONLY); 
-
-      */
+// BUTTON
+    gpio_reset_pin(BT);
+    gpio_set_direction(BT, GPIO_MODE_INPUT);
+    gpio_set_pull_mode(BT, GPIO_PULLUP_ONLY);   
+ 
 // power enable
     gpio_reset_pin(PW);
     gpio_set_direction(PW, GPIO_MODE_OUTPUT);
@@ -366,55 +357,24 @@ void setup()
 /////////////////////////////////////////////////////////////
 
    strip.Begin();
-/*  
-   for(int i=0;i<PixelCount;i++) strip.SetPixelColor(i, BLACK);
-   strip.Show();
-   delay(2000);
-   for(int i=0;i<PixelCount;i++) strip.SetPixelColor(i, WHITEL);
-   strip.Show();
-   delay(2000);
-   for(int i=0;i<PixelCount;i++) strip.SetPixelColor(i, BLACK);
-   strip.Show();   
-   */
 
 //////////////////////////////////////////////////////////////
 // buttons test
 //////////////////////////////////////////////////////////////
 
-strip.SetPixelColor(ONled, WHITEL);
-//strip.SetPixelColor(BATled, WHITEL);
-strip.Show();
-
-VMval = VPval = PAval = PLval = 0;
-while((VMval != 2))
-{
-  if (gpio_get_level(VM) == 0) VMval++;
-  if (VMval > 1){VMval = 2; strip.SetPixelColor(ONled, BLUEL);}
- /* if (gpio_get_level(VP) == 0) VPval++;
-  if (VPval > 1){VPval = 2; strip.SetPixelColor(VPled, GREENL);}
-  if (gpio_get_level(PA) == 0) PAval++;
-  if (PAval > 1){PAval = 2; strip.SetPixelColor(PAled, GREENL);}
-  if (gpio_get_level(PL) == 0) PLval++;
-  if (PLval > 1){PLval = 2; strip.SetPixelColor(PLled, GREENL);}
-  */
+  strip.SetPixelColor(ONled, WHITEL);
   strip.Show();
-  delay(100);
-}
-/*
-strip.SetPixelColor(ONled, GREENL);
-//strip.SetPixelColor(BATled, GREENL);
-strip.Show();
-delay(1000);
-//for(int i=0;i<PixelCount;i++) strip.SetPixelColor(i, BLACK);
-strip.SetPixelColor(ONled, WHITEL);
-//strip.SetPixelColor(BATled, WHITEL);
-strip.Show();*/
+
+  while(gpio_get_level(BT) == 1)delay(50);
+  strip.SetPixelColor(ONled, BLUEL);
+  strip.Show();
+
 ////////////////////////////////////////////////////////////////
 //Micro test
 ////////////////////////////////////////////////////////////////
 
 // init enable and gain pins
-gpio_set_level(PW, 1);
+  gpio_set_level(PW, 1);
 //gpio_set_level(GS, 0);
 
 ////////////////////////////////////////////////////////////////
@@ -423,19 +383,7 @@ gpio_set_level(PW, 1);
 // 2- records it on SD ("record.wav")
 // 3- Checks that que recorded signal is OK
 ///////////////////////////////////////////////////////////////////
-/*
-//waiting for SD
-while(gpio_get_level(SDD) == 1) delay(1);
-SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI);
-delay(500);
-if(!SD.begin(SD_CS))
-  {
-    printf("init SD failed!\n");
-    strip.SetPixelColor(ONled, REDL);
-    strip.SetPixelColor(BATled, REDL);
-    strip.Show();
-  }                         
-*/
+
 //I2S port0 init:   TX, RX, mono , 16bits, 44100hz
 i2s_driver_install(I2SR, &i2s_configR,0,NULL);
 i2s_set_pin(I2SR, &pin_configR);
@@ -459,23 +407,37 @@ if(testOK == true) break;
 
 if(testOK == true)
 {
-strip.SetPixelColor(ONled, GREENL);
-//strip.SetPixelColor(BATled, GREENL);
-//strip.SetPixelColor(PLled, GREENL);
-//strip.SetPixelColor(PAled, GREENL);
-//strip.SetPixelColor(VPled, GREENL);
-//strip.SetPixelColor(VMled, GREENL);
-strip.Show();
+//////////////////////////////////////////////////////////////////// 
+//test write/read on SD
+////////////////////////////////////////////////////////////////////  
+ char b[15];
+
+ SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI);
+ delay(500);
+ if(!SD.begin(SD_CS))
+  {
+    printf("init SD failed!\n");
+    testOK = false;
+  }  
+ File f = SD.open("/record.wav", FILE_WRITE);
+ f.write((uint8_t*)"MuseRosAndCO", 13);
+ f.close(); 
+ f = SD.open("/record.wav", FILE_READ);
+ f.read ((uint8_t*)b, 13);
+ f.close(); 
+ if(strcmp(b, "MuseRosAndCO") != 0)
+ {
+ testOK = false;
+ }
+ SD.remove("/record.wav");
+ if(testOK == false) strip.SetPixelColor(ONled, YELLOW);
+ else strip.SetPixelColor(ONled, GREEN);
+ strip.Show();
 }
 else
 {
  strip.SetPixelColor(ONled, REDL);
-//strip.SetPixelColor(BATled, REDL);
-//strip.SetPixelColor(PLled, REDL);
-//strip.SetPixelColor(PAled, REDL);
-//strip.SetPixelColor(VPled, REDL);
-//strip.SetPixelColor(VMled, REDL);
-strip.Show(); 
+ strip.Show(); 
 }
 
 }
