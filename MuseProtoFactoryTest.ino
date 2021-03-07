@@ -28,17 +28,18 @@ extern "C"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/queue.h"
-#include "freertos/event_groups.h"
-#include "esp_vfs_fat.h"
-#include "esp_log.h"
-#include <sys/socket.h>
-
-#include <dirent.h>
-
-#include <driver/i2s.h>
+  #include "freertos/FreeRTOS.h"
+  #include "freertos/task.h"
+  #include "freertos/queue.h"
+  #include "freertos/event_groups.h"
+  #include "esp_vfs_fat.h"
+  #include "esp_log.h"
+  #include <sys/socket.h>
+  
+  #include <dirent.h>
+  
+  #include <driver/i2s.h>
+  #include <math.h>
 
 #include <NeoPixelBus.h>
 #include "SPIFFS.h"
@@ -117,21 +118,6 @@ NeoPixelBus<NeoGrbFeature, Neo800KbpsMethod> strip(PixelCount, PixelPin);
       };
 
 
-uint8_t header[]={
-      0x52,0x49,0x46,0x46,    //"RIFF"
-      0x24,0x7D,0x00,0x00,    //taille fichier - 8 (little endian)
-      0x57,0x41,0x56,0x45,    //"WAVE"
-      0x66,0x6d,0x74,0x20,    //"fmt "
-      0x10,0x00,0x00,0x00,    //nb d'octets du bloc
-      0x01,0x00,              //format PCM
-      0x01,0x00,              //nombre de canaux
-      0x44,0xAC,0x00,0x00,    //frequence d'echantillonnage 44100
-      0x88,0x58,0x01,0x00,    //nombre d'octets a lire par seconde   88200 
-      0x02,0x00,              //nombre d'octets par bloc d'échantillonnage
-      0x10,0x00,              //nb de bits par echantillon
-      0x64,0x61,0x74,0x61,    //"data"
-      0x00,0x7D,0x00,0x00};   //nombre d'octets de donnees
-
 
 
       
@@ -155,24 +141,29 @@ strip.Show();
 static void playAudio(void* data)
 { 
    int16_t s0,s1;
-   int8_t c[16000];
+   int8_t c[88*200];
+
    int l;  
    size_t t;
    uint16_t s16[64];
 
    int a = 0;
    i2s_set_clk(I2SR,44100, I2S_BITS_PER_SAMPLE_16BIT, I2S_CHANNEL_MONO);
-     
-   File f = SPIFFS.open("/500hz44100Mono.wav", FILE_READ);
-   if(f == NULL) printf("err opening file\n");
-// header read
-   f.read((uint8_t*)c, 44);
-// data read   
-   l = (int)f.read((uint8_t*)c, 16000);
-   if(l < 0) printf("Erreur SD\n");
+   
+ // compute a 500hz/mono/8bits signal (400 msec)    
+     double piX2 = 3.14159 * 2;
+     double v;     
+     int j;
+     for(int i=0;i<88*200;i++)
+     {
+      j = i % 88;
+      v = sin(j * piX2 / 88) * 127;
+      c[i] = (uint8_t) (v + 128);
+   //   printf("%0 2x\n",c[i]);
+     }
 
 //  i2s_zero_dma_buffer(I2SR);
-  for(int i = 0;i < l; i++)
+  for(int i = 0;i < 200*88; i++)
    {  
 // sample value 8bits -> 16        
        s0 = (((int16_t)(c[i]&0xFF)) - 128) << 8 ;       
@@ -193,7 +184,6 @@ static void playAudio(void* data)
    while(n == 0) n = i2s_write_bytes(I2SR, (const char*)s16,128,portMAX_DELAY);     
    i2s_zero_dma_buffer(I2SR);
 
-   f.close();
    printf ("Play End\n");
    vTaskDelete(NULL);
 }
@@ -301,14 +291,14 @@ for(j=0;j<1024;j++)
 #define LO (88 - DT)
 #define HI (88 + DT)
 #define LOH 40
-#define HIH 50
+#define HIH 52
   testOK = true;
   if((imax2-imax1) < LO) testOK = false;
   if((imax2-imax1) > HI) testOK = false;
   if((imin2-imin1) < LO) testOK = false;
   if((imin2-imin1) > HI) testOK = false;
-  if(abs(imax1-imin1) < LOH) testOK = false;
-  if(abs(imax1-imin1) > HIH) testOK = false;
+  if(abs(imax1-imin1) <= LOH) testOK = false;
+  if(abs(imax1-imin1) >= HIH) testOK = false;
   
  
 
